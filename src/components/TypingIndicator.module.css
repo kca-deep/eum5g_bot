@@ -1,0 +1,158 @@
+.wrapper {
+  display: flex;
+  align-items: flex-start;
+  margin: 20px 0 8px 0;
+  opacity: 1;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              margin 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 200px;
+  overflow: hidden;
+}
+
+.hidden {
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.profileImg {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--bg-white);
+  margin-right: 12px;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.profileImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+/* ── Bubble ── */
+.bubble {
+  background: var(--bg-bubble);
+  border-radius: 2px 16px 16px 16px;
+  padding: 13px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.3s;
+}
+
+.bubble.searching {
+  border-color: rgba(20, 86, 253, 0.12);
+}
+
+.bubble.generating {
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+/* ── Wave Bars ── */
+.waveBars {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.bar {
+  display: block;
+  width: 3px;
+  border-radius: 1.5px;
+  height: 8px;
+  animation: wave 1.8s ease-in-out infinite;
+}
+
+.bar:nth-child(1) { animation-delay: 0s; }
+.bar:nth-child(2) { animation-delay: 0.15s; }
+.bar:nth-child(3) { animation-delay: 0.3s; }
+.bar:nth-child(4) { animation-delay: 0.45s; }
+.bar:nth-child(5) { animation-delay: 0.6s; }
+
+/* searching: 느린 wave + primary 그라데이션 */
+.searching .bar {
+  background: linear-gradient(to top, var(--primary), #5b9aff);
+  animation-duration: 1.8s;
+}
+
+/* generating: 빠른 wave + accent 그라데이션 */
+.generating .bar {
+  background: linear-gradient(to top, var(--accent), #7cb3ff);
+  animation-duration: 1.2s;
+}
+
+@keyframes wave {
+  0%, 100% {
+    height: 6px;
+    opacity: 0.45;
+  }
+  50% {
+    height: 20px;
+    opacity: 1;
+  }
+}
+
+/* ── Label ── */
+.label {
+  font-size: 12.5px;
+  font-weight: 450;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .bubble {
+    padding: 11px 14px;
+    gap: 10px;
+  }
+
+  .waveBars {
+    height: 18px;
+  }
+
+  .bar {
+    width: 2.5px;
+  }
+
+  .label {
+    font-size: 12px;
+  }
+
+  .profileImg {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+
+  .name {
+    font-size: 11.5px;
+  }
+}

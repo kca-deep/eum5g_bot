@@ -1,0 +1,329 @@
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wrapper {
+  display: flex;
+  align-items: flex-start;
+  margin: 20px 0 8px 0;
+  opacity: 0;
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.wrapperUser {
+  justify-content: flex-end;
+}
+
+.profileImg {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--bg-white);
+  margin-right: 12px;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.profileImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100% - 60px);
+}
+
+.colUser {
+  align-items: flex-end;
+}
+
+.name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+.bubble {
+  background: var(--bg-bubble);
+  border-radius: 2px 16px 16px 16px;
+  padding: 14px 18px;
+  max-width: 820px;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.bubbleUser {
+  background: var(--primary);
+  border-radius: 16px 2px 16px 16px;
+  border: none;
+}
+
+.bubbleText {
+  font-size: 14px;
+  color: var(--text-body);
+  line-height: 1.7;
+  font-weight: 400;
+  word-break: keep-all;
+}
+
+.bubbleTextUser {
+  color: #fff;
+}
+
+.timestampRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.timestamp {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.imageWrapper {
+  margin: 4px 0 0 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.mainImage {
+  width: 100%;
+  display: block;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 14px;
+}
+
+.mainImage:hover {
+  transform: scale(1.02);
+}
+
+/* 복사 버튼 (아이콘 전용) */
+.copyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.copyBtn:hover {
+  color: var(--text-dark);
+}
+
+.copyBtn svg {
+  fill: currentColor;
+}
+
+.copyBtnCopied {
+  color: var(--cat-green-text);
+}
+
+/* Markdown 스타일 */
+.markdown {
+  line-height: 1.8;
+}
+
+.markdown p {
+  margin: 0 0 8px 0;
+}
+
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
+  margin: 14px 0 8px 0;
+  font-weight: 700;
+}
+
+.markdown h1 { font-size: 17.5px; }
+.markdown h2 { font-size: 16.5px; }
+.markdown h3 { font-size: 15px; }
+
+.markdown ul, .markdown ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.markdown li {
+  margin: 3px 0;
+}
+
+.markdown strong {
+  font-weight: 700;
+}
+
+.markdown code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'Pretendard', monospace;
+}
+
+.markdown pre {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown blockquote {
+  margin: 10px 0;
+  padding: 10px 14px;
+  color: var(--text-body);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.markdown blockquote p {
+  margin: 0 0 4px 0;
+}
+
+.markdown blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* 테이블 가로 스크롤 래퍼 */
+.markdown :global(div.table-wrapper) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.markdown th, .markdown td {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown th {
+  background: rgba(20, 86, 253, 0.06);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-dark);
+}
+
+.markdown tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.markdown td blockquote {
+  margin: 6px 0;
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+
+.markdown hr {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin: 12px 0;
+}
+
+/* Streaming cursor */
+.cursor {
+  display: inline-block;
+  animation: blink 0.8s step-end infinite;
+  color: var(--primary);
+  font-weight: 300;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* RAG 참조 문서 */
+.sources {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sourcesLabel {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.sourceItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12.5px;
+}
+
+.sourceName {
+  color: var(--text-body);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80%;
+}
+
+.sourceScore {
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .bubble {
+    padding: 14px 16px;
+  }
+  .markdown th, .markdown td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .profileImg {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+  .name {
+    font-size: 11.5px;
+  }
+}

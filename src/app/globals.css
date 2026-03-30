@@ -1,0 +1,84 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+:root {
+  --primary: #1456fd;
+  --primary-dark: #0d3fbf;
+  --accent: #2563eb;
+  --bg: #f0f2f5;
+  --bg-white: #ffffff;
+  --bg-bubble: #ffffff;
+  --glass-header: rgba(20, 86, 253, 0.97);
+  --text-dark: #1a1a2e;
+  --text-body: #374151;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --cat-red-bg: #fef2f2;
+  --cat-red-text: #dc2626;
+  --cat-red-border: #fecaca;
+  --cat-blue-bg: #eff6ff;
+  --cat-blue-text: #2563eb;
+  --cat-blue-border: #bfdbfe;
+  --cat-green-bg: #f0fdf4;
+  --cat-green-text: #16a34a;
+  --cat-green-border: #bbf7d0;
+  --tag-bg: #f0f7ff;
+  --tag-text: #3b82f6;
+  --tag-border: #dbeafe;
+  --divider: #f3f4f6;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg);
+  padding-top: 60px;
+  padding-bottom: 90px;
+  min-height: 100vh;
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -300px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(20, 86, 253, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -200px;
+  left: -200px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0.4); opacity: 0.25; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }

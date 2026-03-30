@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>이음5G 주파수 이용관리 - 오늘의 뉴스</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    :root {
+      --primary: #1456fd;
+      --primary-dark: #0d3fbf;
+      --accent: #2563eb;
+      --bg: #f0f2f5;
+      --bg-white: #ffffff;
+      --bg-bubble: #ffffff;
+      --glass-header: rgba(20, 86, 253, 0.97);
+      --text-dark: #1a1a2e;
+      --text-body: #374151;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --cat-red-bg: #fef2f2;
+      --cat-red-text: #dc2626;
+      --cat-red-border: #fecaca;
+      --cat-blue-bg: #eff6ff;
+      --cat-blue-text: #2563eb;
+      --cat-blue-border: #bfdbfe;
+      --cat-green-bg: #f0fdf4;
+      --cat-green-text: #16a34a;
+      --cat-green-border: #bbf7d0;
+      --tag-bg: #f0f7ff;
+      --tag-text: #3b82f6;
+      --tag-border: #dbeafe;
+      --divider: #f3f4f6;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      padding-top: 72px;
+      padding-bottom: 90px;
+      min-height: 100vh;
+      color: var(--text-dark);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── 배경 장식 ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -300px;
+      right: -200px;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(20, 86, 253, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -200px;
+      left: -200px;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── 고정 헤더 ── */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--glass-header);
+      box-shadow: 0 2px 12px rgba(20, 86, 253, 0.2);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+
+    .header-logo {
+      width: 115px;
+      height: auto;
+    }
+
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-icon-wrapper {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    .header-icon-wrapper:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .header-icon-wrapper svg {
+      width: 14px;
+      height: 14px;
+      fill: #fff;
+    }
+
+    .header-icon-wrapper span {
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── 로딩 오버레이 ── */
+    .loader-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .loader-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-dots {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .loader-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+
+    .loader-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loader-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.4); opacity: 0.25; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    .loader-text {
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* ── 애니메이션 ── */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── 콘텐츠 영역 ── */
+    .content {
+      padding: 0 16px;
+      max-width: 640px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── 타이틀 ── */
+    .section-title {
+      text-align: center;
+      margin-bottom: 32px;
+      opacity: 0;
+      animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+    }
+
+    .section-title h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      letter-spacing: -0.3px;
+    }
+
+    .section-title .date-line {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-weight: 400;
+    }
+
+    /* ── 말풍선 래퍼 ── */
+    .bubble-wrapper {
+      display: flex;
+      align-items: flex-start;
+      margin: 20px 0 8px 0;
+      opacity: 0;
+      animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .bubble-wrapper:nth-child(2) { animation-delay: 0.35s; }
+    .bubble-wrapper:nth-child(3) { animation-delay: 0.55s; }
+    .bubble-wrapper:nth-child(4) { animation-delay: 0.75s; }
+    .bubble-wrapper:nth-child(5) { animation-delay: 0.95s; }
+
+    .profile-img {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background: var(--bg-white);
+      margin-right: 12px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      border: none;
+      position: relative;
+    }
+
+    .profile-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* ── 이름 + 말풍선 컨테이너 ── */
+    .bubble-col {
+      display: flex;
+      flex-direction: column;
+      max-width: calc(100% - 60px);
+    }
+
+    .bubble-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      padding-left: 2px;
+    }
+
+    /* ── 말풍선 ── */
+    .bubble {
+      background: var(--bg-bubble);
+      border-radius: 2px 16px 16px 16px;
+      padding: 14px 18px;
+      max-width: 100%;
+      position: relative;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .bubble.user-msg {
+      border: none;
+    }
+
+    .bubble-text {
+      font-size: 14px;
+      color: var(--text-body);
+      line-height: 1.7;
+      font-weight: 400;
+      word-break: keep-all;
+    }
+
+    .timestamp {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 5px;
+      margin-bottom: 8px;
+      padding-left: 2px;
+      font-weight: 400;
+    }
+
+    /* ── 메인 이미지 ── */
+    .main-image-wrapper {
+      margin: 4px 0 0 0;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .main-image {
+      width: 100%;
+      display: block;
+      cursor: pointer;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .main-image:hover {
+      transform: scale(1.02);
+    }
+
+    /* ── 뉴스 아이템 ── */
+    .news-item {
+      cursor: pointer;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--divider);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .news-item:last-child {
+      border-bottom: none;
+    }
+
+    .news-item::before {
+      content: '';
+      position: absolute;
+      left: -22px;
+      top: 16px;
+      bottom: 16px;
+      width: 3px;
+      background: transparent;
+      border-radius: 3px;
+      transition: background 0.2s;
+    }
+
+    .news-item:hover::before {
+      background: var(--primary);
+    }
+
+    .news-item:hover {
+      padding-left: 6px;
+    }
+
+    .news-category {
+      display: inline-block;
+      background: var(--cat-red-bg);
+      color: var(--cat-red-text);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      border: 1px solid var(--cat-red-border);
+    }
+
+    .news-category.tech {
+      background: var(--cat-blue-bg);
+      color: var(--cat-blue-text);
+      border-color: var(--cat-blue-border);
+    }
+
+    .news-category.policy {
+      background: var(--cat-green-bg);
+      color: var(--cat-green-text);
+      border-color: var(--cat-green-border);
+    }
+
+    .news-title {
+      font-size: 15.5px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin: 6px 0;
+      line-height: 1.5;
+      transition: color 0.2s;
+    }
+
+    .news-item:hover .news-title {
+      color: var(--primary);
+    }
+
+    .news-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      font-weight: 400;
+    }
+
+    .news-summary {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 10px;
+      font-weight: 400;
+    }
+
+    .news-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .keyword-tag {
+      display: inline-block;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      border: 1px solid var(--tag-border);
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .keyword-tag:hover {
+      background: #dbeafe;
+      border-color: #93c5fd;
+    }
+
+    /* ── 타이핑 인디케이터 ── */
+    .typing-indicator {
+      display: flex;
+      align-items: flex-start;
+      margin: 20px 0 8px 0;
+      opacity: 0;
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transition: opacity 0.3s, max-height 0.3s;
+      max-height: 200px;
+      overflow: hidden;
+    }
+
+    .typing-indicator.hide {
+      opacity: 0;
+      max-height: 0;
+      margin: 0;
+      pointer-events: none;
+    }
+
+    .typing-bubble {
+      background: var(--bg-bubble);
+      border-radius: 2px 16px 16px 16px;
+      padding: 12px 18px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .typing-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: typingBounce 1.4s ease-in-out infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes typingBounce {
+      0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.35;
+      }
+      30% {
+        transform: translateY(-6px);
+        opacity: 1;
+      }
+    }
+
+    .typing-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 10px;
+      font-weight: 400;
+    }
+
+    /* ── 채팅 입력창 ── */
+    .chat-input-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: var(--bg);
+      padding: 10px 16px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+
+    .chat-input-container {
+      max-width: 640px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .chat-input-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      background: var(--bg-white);
+      border: 1.5px solid #e2e5ea;
+      border-radius: 24px;
+      padding: 6px 8px 6px 18px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      min-height: 46px;
+    }
+
+    .chat-input-wrapper:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(20, 86, 253, 0.1);
+    }
+
+    .chat-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-family: 'Pretendard', sans-serif;
+      font-size: 14px;
+      color: var(--text-dark);
+      resize: none;
+      max-height: 120px;
+      line-height: 1.5;
+      padding: 6px 0;
+      background: transparent;
+    }
+
+    .chat-input::placeholder {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .chat-send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.15s, opacity 0.2s;
+      opacity: 0.4;
+    }
+
+    .chat-send-btn.active {
+      opacity: 1;
+    }
+
+    .chat-send-btn.active:hover {
+      background: var(--primary-dark);
+      transform: scale(1.06);
+    }
+
+    .chat-send-btn:active {
+      transform: scale(0.94);
+    }
+
+    .chat-send-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+      margin-left: 1px;
+    }
+
+    /* ── 스크롤바 ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.12);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    /* ── 반응형 ── */
+    @media (max-width: 480px) {
+      .bubble {
+        padding: 14px 16px;
+      }
+
+      .profile-img {
+        width: 40px;
+        height: 40px;
+        border-radius: 13px;
+      }
+
+      .bubble-name {
+        font-size: 11.5px;
+      }
+
+      .news-title {
+        font-size: 14.5px;
+      }
+
+      .news-summary {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 로딩 오버레이 -->
+  <div class="loader-overlay" id="loader">
+    <div class="loader-dots">
+      <div class="loader-dot"></div>
+      <div class="loader-dot"></div>
+      <div class="loader-dot"></div>
+    </div>
+    <p class="loader-text">AI가 오늘의 뉴스를 분석 중입니다</p>
+  </div>
+
+  <!-- 고정 헤더 -->
+  <header class="header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img src="logo.png" alt="이음5G" class="header-logo">
+    </div>
+    <div class="header-icons">
+      <div class="header-icon-wrapper">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        <span>TODAY</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 콘텐츠 -->
+  <div class="content" id="chatContent">
+
+    <!-- 타이틀 -->
+    <div class="section-title">
+      <h2>오늘의 주요 이슈</h2>
+      <div class="date-line" id="dateLine"></div>
+    </div>
+
+    <!-- 인사 말풍선 -->
+    <div class="bubble-wrapper">
+      <div class="profile-img">
+        <img src="chat_img2.png" alt="AI">
+      </div>
+      <div class="bubble-col">
+        <div class="bubble-name">이음5G AI</div>
+        <div class="bubble">
+          <div class="bubble-text">
+            안녕하세요? 5G 특화망 관련 오늘의 주요 이슈를 요약하여, AI로 그림으로 그려봤습니다
+          </div>
+        </div>
+        <div class="timestamp" id="timestamp1"></div>
+      </div>
+    </div>
+
+    <!-- AI 생성 이미지 말풍선 -->
+    <div class="bubble-wrapper" id="imageBubble" style="display:none;">
+      <div class="profile-img">
+        <img src="chat_img2.png" alt="AI">
+      </div>
+      <div class="bubble-col">
+        <div class="bubble-name">이음5G AI</div>
+        <div class="bubble">
+          <div class="main-image-wrapper">
+            <img class="main-image" id="aiImage" src="" alt="AI 생성 이미지" onclick="window.open(this.src, '_blank')">
+          </div>
+        </div>
+        <div class="timestamp" id="timestamp2"></div>
+      </div>
+    </div>
+
+    <!-- 뉴스 소개 말풍선 -->
+    <div class="bubble-wrapper" id="newsIntroBubble" style="display:none;">
+      <div class="profile-img">
+        <img src="chat_img2.png" alt="AI">
+      </div>
+      <div class="bubble-col">
+        <div class="bubble-name">이음5G AI</div>
+        <div class="bubble">
+          <div class="bubble-text">
+            최근 5G 특화망과 관련된 주요 이슈를 정리해봤어요
+          </div>
+        </div>
+        <div class="timestamp" id="timestamp3"></div>
+      </div>
+    </div>
+
+    <!-- 뉴스 피드 말풍선 -->
+    <div class="bubble-wrapper" id="newsBubble" style="display:none;">
+      <div class="profile-img">
+        <img src="chat_img2.png" alt="AI">
+      </div>
+      <div class="bubble-col">
+        <div class="bubble-name">이음5G AI</div>
+        <div class="bubble" id="newsContainer">
+        </div>
+        <div class="timestamp" id="timestamp4"></div>
+      </div>
+    </div>
+
+    <!-- 타이핑 인디케이터 -->
+    <div class="typing-indicator" id="typingIndicator">
+      <div class="profile-img">
+        <img src="chat_img2.png" alt="AI">
+      </div>
+      <div class="bubble-col">
+        <div class="bubble-name">이음5G AI</div>
+        <div class="typing-bubble">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <span class="typing-label">답변 작성 중</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 채팅 입력창 -->
+  <div class="chat-input-bar">
+    <div class="chat-input-container">
+      <div class="chat-input-wrapper">
+        <textarea class="chat-input" id="chatInput" rows="1" placeholder="궁금한 점을 물어보세요"></textarea>
+        <button class="chat-send-btn" id="sendBtn" type="button">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 날짜 표시
+    (function() {
+      var now = new Date();
+      var days = ['일', '월', '화', '수', '목', '금', '토'];
+      var y = now.getFullYear();
+      var m = (now.getMonth() + 1).toString().padStart(2, '0');
+      var d = now.getDate().toString().padStart(2, '0');
+      var day = days[now.getDay()];
+      document.getElementById('dateLine').textContent = y + '.' + m + '.' + d + ' ' + day + '요일';
+    })();
+
+    // 타임스탬프 생성
+    function getTimestamp() {
+      var now = new Date();
+      var hours = now.getHours();
+      var minutes = now.getMinutes().toString().padStart(2, '0');
+      var period = hours < 12 ? '오전' : '오후';
+      var displayHours = hours % 12 || 12;
+      return period + ' ' + displayHours + ':' + minutes;
+    }
+
+    // 뉴스 아이템 HTML 생성
+    function createNewsItem(item) {
+      var keywordsHtml = '';
+      if (item.keyword) {
+        var keywords = item.keyword.split(',');
+        keywordsHtml = '<div class="news-keywords">';
+        for (var i = 0; i < keywords.length; i++) {
+          var kw = keywords[i].trim();
+          if (kw) {
+            keywordsHtml += '<span class="keyword-tag">#' + kw + '</span>';
+          }
+        }
+        keywordsHtml += '</div>';
+      }
+
+      return '<div class="news-item" onclick="window.open(\'' + (item.url || '#') + '\', \'_blank\')">' +
+        '<span class="news-category">' + (item.category || '이슈') + '</span>' +
+        '<div class="news-title">' + (item.title || '') + '</div>' +
+        '<div class="news-meta">' + (item.source || '') + ' | ' + (item.date || '') + '</div>' +
+        '<div class="news-summary">' + (item.summary || '') + '</div>' +
+        keywordsHtml +
+        '</div>';
+    }
+
+    // 타이핑 인디케이터 표시/숨김
+    function showTyping() {
+      $('#typingIndicator').removeClass('hide');
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      $('#typingIndicator').addClass('hide');
+    }
+
+    // 스크롤 하단 이동
+    function scrollToBottom() {
+      setTimeout(function() {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }, 100);
+    }
+
+    // AI 응답 말풍선 추가 (스트리밍)
+    function appendAiBubble(text, streaming) {
+      var ts = getTimestamp();
+      var id = 'ai-msg-' + Date.now();
+      var html =
+        '<div class="bubble-wrapper" style="opacity:0;animation:slideUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards;">' +
+          '<div class="profile-img"><img src="chat_img2.png" alt="AI"></div>' +
+          '<div class="bubble-col">' +
+            '<div class="bubble-name">이음5G AI</div>' +
+            '<div class="bubble"><div class="bubble-text" id="' + id + '"></div></div>' +
+            '<div class="timestamp">' + ts + '</div>' +
+          '</div>' +
+        '</div>';
+      $('#typingIndicator').before(html);
+      scrollToBottom();
+
+      if (streaming) {
+        return id;
+      } else {
+        streamText(id, text);
+        return id;
+      }
+    }
+
+    // 글자 단위 스트리밍 출력
+    function streamText(elementId, text, callback) {
+      var $el = $('#' + elementId);
+      var i = 0;
+      var len = text.length;
+      var speed = 20;
+
+      function type() {
+        if (i < len) {
+          // HTML 태그는 한번에 출력
+          if (text.charAt(i) === '<') {
+            var end = text.indexOf('>', i);
+            if (end !== -1) {
+              $el.html($el.html() + text.substring(i, end + 1));
+              i = end + 1;
+            } else {
+              $el.html($el.html() + text.charAt(i));
+              i++;
+            }
+          } else {
+            $el.html($el.html() + text.charAt(i));
+            i++;
+          }
+
+          if (i % 10 === 0) scrollToBottom();
+          setTimeout(type, speed);
+        } else {
+          scrollToBottom();
+          if (callback) callback();
+        }
+      }
+      type();
+    }
+
+    // 사용자 말풍선 추가
+    function appendUserBubble(text) {
+      var ts = getTimestamp();
+      var html =
+        '<div class="bubble-wrapper user-bubble" style="opacity:0;animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1) forwards;justify-content:flex-end;">' +
+          '<div class="bubble-col" style="align-items:flex-end;">' +
+            '<div class="bubble user-msg" style="background:var(--primary);border-radius:20px 4px 20px 20px;border-color:transparent;">' +
+              '<div class="bubble-text" style="color:#fff;">' + text + '</div>' +
+            '</div>' +
+            '<div class="timestamp" style="padding-left:0;padding-right:2px;">' + ts + '</div>' +
+          '</div>' +
+        '</div>';
+      $('#typingIndicator').before(html);
+      scrollToBottom();
+    }
+
+    // 채팅 입력 처리
+    function handleSend() {
+      var $input = $('#chatInput');
+      var text = $input.val().trim();
+      if (!text) return;
+
+      $input.val('');
+      $input.css('height', 'auto');
+      $('#sendBtn').removeClass('active');
+
+      appendUserBubble(text);
+
+      // 타이핑 인디케이터 표시
+      showTyping();
+
+      // 서버에 질문 전송 — SSE 스트리밍 시도, 실패 시 일반 AJAX 폴백
+      try {
+        var evtSource = new EventSource('/eum5gportal/fnct/common/gpt/stream?question=' + encodeURIComponent(text));
+        var msgId = null;
+        var started = false;
+
+        evtSource.onmessage = function(e) {
+          if (!started) {
+            hideTyping();
+            msgId = appendAiBubble('', true);
+            started = true;
+          }
+          var chunk = e.data;
+          if (chunk === '[DONE]') {
+            evtSource.close();
+            scrollToBottom();
+            return;
+          }
+          $('#' + msgId).html($('#' + msgId).html() + chunk);
+          scrollToBottom();
+        };
+
+        evtSource.onerror = function() {
+          evtSource.close();
+          if (!started) {
+            // SSE 미지원 시 일반 AJAX 폴백
+            $.ajax({
+              url: '/eum5gportal/fnct/common/gpt',
+              method: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({ question: text }),
+              dataType: 'json',
+              success: function(data) {
+                hideTyping();
+                var answer = (data && data.answer) ? data.answer : '죄송합니다. 현재 답변을 드리기 어렵습니다.';
+                appendAiBubble(answer);
+              },
+              error: function() {
+                hideTyping();
+                appendAiBubble('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+              }
+            });
+          }
+        };
+      } catch(err) {
+        // EventSource 미지원 환경 폴백
+        $.ajax({
+          url: '/eum5gportal/fnct/common/gpt',
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({ question: text }),
+          dataType: 'json',
+          success: function(data) {
+            hideTyping();
+            var answer = (data && data.answer) ? data.answer : '죄송합니다. 현재 답변을 드리기 어렵습니다.';
+            appendAiBubble(answer);
+          },
+          error: function() {
+            hideTyping();
+            appendAiBubble('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+          }
+        });
+      }
+    }
+
+    // 페이지 로드 시 데이터 가져오기
+    $(document).ready(function() {
+      var ts = getTimestamp();
+      $('#timestamp1').text(ts);
+
+      // 입력창 자동 높이 조절 + 전송 버튼 활성화
+      var $chatInput = $('#chatInput');
+      var $sendBtn = $('#sendBtn');
+
+      $chatInput.on('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        $sendBtn.toggleClass('active', this.value.trim().length > 0);
+      });
+
+      // Enter 전송 (Shift+Enter 줄바꿈)
+      $chatInput.on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      });
+
+      $sendBtn.on('click', handleSend);
+
+      // 뉴스 데이터 로드
+      showTyping();
+
+      $.ajax({
+        url: '/eum5gportal/fnct/common/gpt',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+          var ts = getTimestamp();
+
+          if (data.image) {
+            $('#aiImage').attr('src', data.image);
+            $('#imageBubble').css('display', 'flex');
+            $('#timestamp2').text(ts);
+          }
+
+          $('#newsIntroBubble').css('display', 'flex');
+          $('#timestamp3').text(ts);
+
+          if (data.result && data.result.length > 0) {
+            var newsHtml = '';
+            for (var i = 0; i < data.result.length; i++) {
+              newsHtml += createNewsItem(data.result[i]);
+            }
+            $('#newsContainer').html(newsHtml);
+            $('#newsBubble').css('display', 'flex');
+            $('#timestamp4').text(ts);
+          }
+
+          setTimeout(function() {
+            $('#loader').addClass('hidden');
+          }, 300);
+
+          scrollToBottom();
+        },
+        error: function() {
+          $('#loader').addClass('hidden');
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
