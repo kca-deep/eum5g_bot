@@ -14,6 +14,16 @@ interface Props {
   style?: React.CSSProperties;
 }
 
+/**
+ * 한글 인접 굵게(**...**) 렌더 보정.
+ * CommonMark의 flanking 규칙상 닫는 `**`가 구두점 뒤 + 한글 앞일 때
+ * (예: `...(EMSIT)**에서`) 강조로 인식되지 않아 `**`가 그대로 노출된다.
+ * rehypeRaw가 켜져 있으므로 인라인 굵게를 <strong>으로 변환해 우회한다.
+ */
+function normalizeMarkdown(text: string): string {
+  return text.replace(/\*\*(\S(?:[^\n*]*\S)?)\*\*/g, '<strong>$1</strong>');
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -118,7 +128,7 @@ export default function ChatBubble({ message, style }: Props) {
                   ),
                 }}
               >
-                {message.content}
+                {normalizeMarkdown(message.content)}
               </ReactMarkdown>
               {message.isStreaming && <span className={styles.cursor}>▍</span>}
             </div>

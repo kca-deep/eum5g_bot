@@ -148,11 +148,24 @@ function sseEncode(event: Record<string, unknown>): Uint8Array {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { query, conversation_id } = body;
+    const { query, conversation_id, history } = body;
 
     if (!query) {
       return Response.json({ error: 'query is required' }, { status: 400 });
     }
+
+    // 멀티턴: 클라이언트가 보낸 직전 대화 이력을 검증·정리(최근 6개 = 3턴까지).
+    const priorMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = Array.isArray(history)
+      ? history
+          .filter(
+            (m: unknown): m is { role: string; content: string } =>
+              !!m &&
+              typeof (m as { content?: unknown }).content === 'string' &&
+              ((m as { role?: unknown }).role === 'user' || (m as { role?: unknown }).role === 'assistant'),
+          )
+          .slice(-6)
+          .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      : [];
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -172,12 +185,14 @@ export async function POST(req: NextRequest) {
             status: 'generating',
           }));
 
+          // system(현재 질문용 RAG 컨텍스트 포함) → 직전 대화 이력 → 현재 질문
           const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
             { role: 'system', content: systemPrompt },
+            ...priorMessages,
             { role: 'user', content: query },
           ];
 
-          console.log(`[Chat] model=${MODEL}, envModel=${process.env.OPENAI_MODEL}, records=${records.length}, promptLen=${systemPrompt.length}`);
+          console.log(`[Chat] model=${MODEL}, envModel=${process.env.OPENAI_MODEL}, records=${records.length}, history=${priorMessages.length}, promptLen=${systemPrompt.length}`);
           const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
             model: MODEL,
             messages,

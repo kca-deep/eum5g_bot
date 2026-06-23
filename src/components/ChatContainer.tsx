@@ -131,12 +131,12 @@ export default function ChatContainer() {
   }, [scrollToBottom]);
 
   /** Blocking 폴백 */
-  const sendBlocking = useCallback(async (text: string) => {
+  const sendBlocking = useCallback(async (text: string, history: { role: string; content: string }[]) => {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text, conversation_id: conversationId }),
+        body: JSON.stringify({ query: text, conversation_id: conversationId, history }),
       });
 
       const data = await res.json();
@@ -168,6 +168,12 @@ export default function ChatContainer() {
   const handleSend = useCallback(async (text: string) => {
     const ts = getTimestamp();
 
+    // 멀티턴: 현재 질문 이전의 대화에서 최근 6개(3턴)를 추려 함께 전송
+    const history = messages
+      .filter(m => m.type === 'text' && m.content)
+      .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }))
+      .slice(-6);
+
     setMessages(prev => [...prev, {
       id: nextId(),
       role: 'user',
@@ -194,12 +200,12 @@ export default function ChatContainer() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text, conversation_id: conversationId }),
+        body: JSON.stringify({ query: text, conversation_id: conversationId, history }),
         signal: controller.signal,
       });
 
       if (!res.ok || !res.body) {
-        sendBlocking(text);
+        sendBlocking(text, history);
         return;
       }
 
@@ -233,7 +239,7 @@ export default function ChatContainer() {
           if (evt.event === 'error') {
             reader.cancel();
             if (!started) {
-              sendBlocking(text);
+              sendBlocking(text, history);
             } else {
               setMessages(prev => prev.map(m =>
                 m.id === streamingMsgId
@@ -300,7 +306,7 @@ export default function ChatContainer() {
       if (err instanceof Error && err.name === 'AbortError') return;
 
       if (!started) {
-        sendBlocking(text);
+        sendBlocking(text, history);
       } else {
         setMessages(prev => prev.map(m =>
           m.id === streamingMsgId ? { ...m, isStreaming: false } : m
@@ -309,7 +315,7 @@ export default function ChatContainer() {
         scrollToBottom();
       }
     }
-  }, [conversationId, scrollToBottom, sendBlocking]);
+  }, [messages, conversationId, scrollToBottom, sendBlocking]);
 
   return (
     <>
