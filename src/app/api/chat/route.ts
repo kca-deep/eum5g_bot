@@ -24,7 +24,7 @@ function loadSystemPrompt(): string {
     } catch { /* try next */ }
   }
   console.error('[Prompt] system.md를 찾을 수 없습니다. 기본 프롬프트를 사용합니다.');
-  return '당신은 KCA 이음5G사업팀의 AI 어시스턴트입니다. 5G 특화망 가이드라인을 기반으로 답변하세요.\n\n{context}';
+  return '당신은 KCA 전파통신AX본부 AI특화망사업팀의 AI 어시스턴트입니다. 5G 특화망(이음5G) 가이드라인을 기반으로 답변하세요.\n\n{context}';
 }
 
 const SYSTEM_PROMPT_TEMPLATE = loadSystemPrompt();
@@ -65,8 +65,11 @@ async function retrieveChunks(query: string): Promise<DifyRecord[]> {
         retrieval_model: {
           search_method: 'semantic_search',
           reranking_enable: false,
-          top_k: 8,
-          score_threshold_enabled: false,
+          top_k: 6,
+          // 유사도가 낮은 노이즈 청크 주입을 막아 잘못된 인용을 줄임.
+          // 검색 품질에 따라 RAG_SCORE_THRESHOLD(0~1)로 조정 가능.
+          score_threshold_enabled: true,
+          score_threshold: Number(process.env.RAG_SCORE_THRESHOLD) || 0.4,
         },
       }),
     },
@@ -125,12 +128,14 @@ function buildSystemPrompt(records: DifyRecord[]): string {
     })
     .join('\n\n');
 
-  // 디버깅: 검색된 chunk의 페이지 정보 확인
-  console.log('[RAG Debug] 검색된 참조 수:', records.length);
-  records.forEach((r, i) => {
-    const pages = r.segment.content.match(/\[원본 p\.(\d+)\]/g);
-    console.log(`[RAG Debug] 참조 ${i + 1}: ${r.segment.document?.name || '?'}, 유사도: ${Math.round(r.score * 100)}%, 페이지 마커: ${pages ? pages.join(', ') : '없음'}, 내용 미리보기: ${r.segment.content.substring(0, 100)}...`);
-  });
+  // 디버깅: 검색된 chunk의 페이지 정보 확인 (RAG_DEBUG=1 일 때만 — 프로덕션에서 질의/문서 내용 노출 방지)
+  if (process.env.RAG_DEBUG === '1') {
+    console.log('[RAG Debug] 검색된 참조 수:', records.length);
+    records.forEach((r, i) => {
+      const pages = r.segment.content.match(/\[원본 p\.(\d+)\]/g);
+      console.log(`[RAG Debug] 참조 ${i + 1}: ${r.segment.document?.name || '?'}, 유사도: ${Math.round(r.score * 100)}%, 페이지 마커: ${pages ? pages.join(', ') : '없음'}, 내용 미리보기: ${r.segment.content.substring(0, 100)}...`);
+    });
+  }
 
   return SYSTEM_PROMPT_TEMPLATE.replace('{context}', context);
 }
@@ -176,6 +181,8 @@ export async function POST(req: NextRequest) {
           const completion = await openai.chat.completions.create({
             model: MODEL,
             messages,
+            // 사실 기반 공공 도메인: 낮은 온도로 정확도·일관성 확보. OPENAI_TEMPERATURE로 조정 가능.
+            temperature: Number(process.env.OPENAI_TEMPERATURE) || 0.3,
             stream: true,
           });
 
