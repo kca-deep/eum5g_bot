@@ -178,13 +178,17 @@ export async function POST(req: NextRequest) {
           ];
 
           console.log(`[Chat] model=${MODEL}, envModel=${process.env.OPENAI_MODEL}, records=${records.length}, promptLen=${systemPrompt.length}`);
-          const completion = await openai.chat.completions.create({
+          const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
             model: MODEL,
             messages,
-            // 사실 기반 공공 도메인: 낮은 온도로 정확도·일관성 확보. OPENAI_TEMPERATURE로 조정 가능.
-            temperature: Number(process.env.OPENAI_TEMPERATURE) || 0.3,
             stream: true,
-          });
+          };
+          // gpt-5 계열 등 일부 모델은 기본값(1) 외 temperature를 거부하므로,
+          // OPENAI_TEMPERATURE가 명시된 경우에만 전달한다(예: gpt-4o에서 0.3).
+          if (process.env.OPENAI_TEMPERATURE) {
+            createParams.temperature = Number(process.env.OPENAI_TEMPERATURE);
+          }
+          const completion = await openai.chat.completions.create(createParams);
 
           const sources = records.map(r => ({
             dataset_id: DIFY_DATASET_ID,
