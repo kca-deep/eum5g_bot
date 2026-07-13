@@ -13,7 +13,7 @@ export default function Header() {
             <svg viewBox="0 0 24 24">
               <path d="M7 2v11h3v9l7-12h-4l4-8z" />
             </svg>
-            <span>Beta</span>
+            <span>시범운영</span>
           </div>
         </div>
       </div>

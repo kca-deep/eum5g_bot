@@ -88,6 +88,22 @@ async function retrieveChunks(query: string): Promise<DifyRecord[]> {
   return data.records || [];
 }
 
+/** 문서 파일명을 사용자에게 노출해도 되는 자료 유형으로 매핑.
+ * 파일명(구축사례.md 등)이 답변에 새어나가지 않도록 카테고리 라벨만 모델에 전달한다. */
+function docCategory(name: string): string {
+  if (/구축\s*사례/.test(name)) return '구축사례 DB';
+  if (/문의|응답|로그/.test(name)) return '문의응답 사례';
+  return '5G 특화망 가이드라인';
+}
+
+/** 참조 청크에서 개인정보(이메일)와 내부 페이지 마커를 제거.
+ * 모델이 이메일·페이지 번호를 그대로 복창하는 것을 원천 차단한다. */
+function sanitizeContent(content: string): string {
+  return content
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[이메일 생략]')
+    .replace(/\s*\[원본 p\.\d+\]/g, '');
+}
+
 /** Step 2: 검색된 청크로 시스템 프롬프트 조합 */
 function buildSystemPrompt(records: DifyRecord[]): string {
   if (records.length === 0) {
@@ -99,32 +115,9 @@ function buildSystemPrompt(records: DifyRecord[]): string {
 
   const context = records
     .map((r, i) => {
-      const doc = r.segment.document?.name || '알 수 없는 문서';
-      const score = Math.round(r.score * 100);
-
-      // chunk 내 [원본 p.XX] 마커에서 페이지 번호 추출
-      const pageMatches = r.segment.content.match(/\[원본 p\.(\d+)\]/g);
-      let pageInfo = '';
-      if (pageMatches && pageMatches.length > 0) {
-        const pages = pageMatches
-          .map(m => parseInt(m.match(/\d+/)![0], 10))
-          .sort((a, b) => a - b);
-        const unique = [...new Set(pages)];
-        if (unique.length === 1) {
-          pageInfo = `, 원본 페이지: p.${unique[0]}`;
-        } else {
-          const min = unique[0];
-          const max = unique[unique.length - 1];
-          // 연속 범위면 p.XX~YY, 아니면 나열
-          if (max - min === unique.length - 1) {
-            pageInfo = `, 원본 페이지: p.${min}~${max}`;
-          } else {
-            pageInfo = `, 원본 페이지: p.${unique.join(', p.')}`;
-          }
-        }
-      }
-
-      return `### 참조 ${i + 1} (${doc}, 유사도: ${score}%${pageInfo})\n${r.segment.content}`;
+      const category = docCategory(r.segment.document?.name || '');
+      // 파일명·유사도·페이지는 사용자 답변에 새어나가므로 라벨에 넣지 않는다.
+      return `### 참조 ${i + 1} (자료 유형: ${category})\n${sanitizeContent(r.segment.content)}`;
     })
     .join('\n\n');
 

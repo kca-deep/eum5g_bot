@@ -64,6 +64,13 @@ export default function ChatInput({ onSend, disabled }: Props) {
           </button>
         </div>
       </div>
+      <p className={styles.notice}>
+        개인정보·민감정보는 입력하지 마세요. AI 답변에는 오류가 있을 수 있으니 중요한 내용은{' '}
+        <a href="https://spectrummap.kr/eum5gportal/" target="_blank" rel="noopener noreferrer">
+          5G 특화망 지원포털
+        </a>
+        ·지원센터에 확인하시기 바랍니다.
+      </p>
     </div>
   );
 }
