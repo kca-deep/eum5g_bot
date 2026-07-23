@@ -15,17 +15,6 @@ export interface GptResponse {
 }
 
 // Dify RAG + OpenAI Streaming types
-export interface DifyRetrievalResource {
-  dataset_id: string;
-  dataset_name: string;
-  document_id: string;
-  document_name: string;
-  segment_id: string;
-  content: string;
-  score: number;
-  position: number;
-}
-
 export type TypingPhase = 'searching' | 'generating';
 
 export interface DifyStreamEvent {
@@ -37,7 +26,6 @@ export interface DifyStreamEvent {
   created_at?: number;
   metadata?: {
     usage?: Record<string, number>;
-    retrieval_resources?: DifyRetrievalResource[];
   };
   code?: string;
   message?: string;
@@ -53,5 +41,4 @@ export interface ChatMessage {
   newsItems?: NewsData[];
   imageUrl?: string;
   isStreaming?: boolean;
-  sources?: DifyRetrievalResource[];
 }

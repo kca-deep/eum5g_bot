@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ChatMessage, GptResponse, DifyStreamEvent, DifyRetrievalResource, TypingPhase } from '@/types';
+import type { ChatMessage, GptResponse, DifyStreamEvent, TypingPhase } from '@/types';
 import ChatBubble from './ChatBubble';
 import TypingIndicator from './TypingIndicator';
 import ChatInput from './ChatInput';
 import LoadingOverlay from './LoadingOverlay';
 import styles from './ChatContainer.module.css';
+
+const STORAGE_KEY = 'eum5g-chat-v1';
+const GENERIC_ERROR_MESSAGE = '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
 
 function getTimestamp() {
   const now = new Date();
@@ -29,6 +32,24 @@ function getDateLine() {
 let msgIdCounter = 0;
 function nextId() {
   return `msg-${++msgIdCounter}`;
+}
+
+/** 새로고침 후에도 대화가 이어지도록 sessionStorage에서 복원.
+ * 복원 시 스트리밍 플래그를 정리하고, id 충돌이 없도록 카운터를 이어받는다. */
+function loadSavedMessages(): ChatMessage[] | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ChatMessage[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    for (const m of parsed) {
+      const n = Number(m.id?.replace('msg-', ''));
+      if (Number.isFinite(n) && n > msgIdCounter) msgIdCounter = n;
+    }
+    return parsed.map((m) => ({ ...m, isStreaming: false }));
+  } catch {
+    return null;
+  }
 }
 
 /** SSE 스트림을 줄 단위로 파싱 */
@@ -61,14 +82,38 @@ export default function ChatContainer() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const scrollToBottom = useCallback(() => {
+  /** 사용자가 위로 스크롤해 과거 내용을 읽는 중이면 자동 스크롤을 멈춘다(sticky scroll).
+   * force는 사용자 자신의 전송 직후 등 항상 내려가야 하는 경우에만 사용. */
+  const scrollToBottom = useCallback((force = false) => {
     setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const el = bottomRef.current;
+      if (!el) return;
+      const nearBottom = el.getBoundingClientRect().top < window.innerHeight + 200;
+      if (force || nearBottom) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
     }, 100);
   }, []);
 
-  // 초기 뉴스 데이터 로드 (NEWS_API_URL 설정 시에만 호출)
+  // 대화 내용을 sessionStorage에 저장(새로고침 시 복원용)
   useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(messages.map((m) => ({ ...m, isStreaming: false }))),
+      );
+    } catch { /* 저장 실패는 무시 */ }
+  }, [messages]);
+
+  // 초기화: 저장된 대화가 있으면 복원, 없으면 인사말 + 뉴스 로드
+  useEffect(() => {
+    const saved = loadSavedMessages();
+    if (saved) {
+      setMessages(saved);
+      return;
+    }
+
     const ts = getTimestamp();
     const newsApiUrl = process.env.NEXT_PUBLIC_NEWS_API_URL;
 
@@ -130,39 +175,20 @@ export default function ChatContainer() {
       });
   }, [scrollToBottom]);
 
-  /** Blocking 폴백 */
-  const sendBlocking = useCallback(async (text: string, history: { role: string; content: string }[]) => {
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text, conversation_id: conversationId, history }),
-      });
+  /** 스트리밍 중지: 진행 중인 요청을 끊는다. 후처리(플래그 정리)는 handleSend의 abort 분기에서 수행. */
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
-      const data = await res.json();
-      setIsTyping(false);
-
-      setMessages(prev => [...prev, {
-        id: nextId(),
-        role: 'ai',
-        content: data.answer || '죄송합니다. 현재 답변을 드리기 어렵습니다.',
-        timestamp: getTimestamp(),
-        type: 'text',
-      }]);
-    } catch {
-      setIsTyping(false);
-      setMessages(prev => [...prev, {
-        id: nextId(),
-        role: 'ai',
-        content: '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
-        timestamp: getTimestamp(),
-        type: 'text',
-      }]);
-    } finally {
-      setIsSending(false);
-      scrollToBottom();
-    }
-  }, [conversationId, scrollToBottom]);
+  const pushErrorMessage = useCallback((text: string) => {
+    setMessages(prev => [...prev, {
+      id: nextId(),
+      role: 'ai',
+      content: text,
+      timestamp: getTimestamp(),
+      type: 'text',
+    }]);
+  }, []);
 
   /** Dify RAG + OpenAI 스트리밍 전송 */
   const handleSend = useCallback(async (text: string) => {
@@ -185,16 +211,27 @@ export default function ChatContainer() {
     setTypingPhase('searching');
     setIsTyping(true);
     setIsSending(true);
-    scrollToBottom();
+    scrollToBottom(true);
 
     const streamingMsgId = nextId();
     let started = false;
     let buffer = '';
-    let collectedSources: DifyRetrievalResource[] | undefined;
 
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    /** 이 요청이 여전히 최신 요청일 때만 상태를 정리(새 전송이 이전 요청을 abort한 경우와 구분) */
+    const finalize = (markDone: boolean) => {
+      if (abortRef.current !== controller) return;
+      if (markDone) {
+        setMessages(prev => prev.map(m =>
+          m.id === streamingMsgId ? { ...m, isStreaming: false } : m
+        ));
+      }
+      setIsTyping(false);
+      setIsSending(false);
+    };
 
     try {
       const res = await fetch('/api/chat', {
@@ -205,7 +242,14 @@ export default function ChatContainer() {
       });
 
       if (!res.ok || !res.body) {
-        sendBlocking(text, history);
+        // 서버가 알려준 사유(요청 제한·길이 초과 등)가 있으면 그대로 안내
+        let msg = GENERIC_ERROR_MESSAGE;
+        try {
+          const data = await res.json();
+          if (data?.error) msg = data.error;
+        } catch { /* JSON 아님 — 일반 오류 문구 사용 */ }
+        finalize(false);
+        pushErrorMessage(msg);
         return;
       }
 
@@ -239,14 +283,15 @@ export default function ChatContainer() {
           if (evt.event === 'error') {
             reader.cancel();
             if (!started) {
-              sendBlocking(text, history);
+              finalize(false);
+              pushErrorMessage(evt.message || GENERIC_ERROR_MESSAGE);
             } else {
               setMessages(prev => prev.map(m =>
                 m.id === streamingMsgId
                   ? { ...m, isStreaming: false, content: m.content + '\n\n(오류가 발생했습니다)' }
                   : m
               ));
-              setIsSending(false);
+              finalize(false);
             }
             return;
           }
@@ -282,40 +327,32 @@ export default function ChatContainer() {
             scrollToBottom();
           }
 
-          if (evt.event === 'message_end') {
-            if (evt.metadata?.retrieval_resources) {
-              collectedSources = evt.metadata.retrieval_resources;
-            }
-            if (evt.conversation_id) {
-              setConversationId(evt.conversation_id);
-            }
+          if (evt.event === 'message_end' && evt.conversation_id) {
+            setConversationId(evt.conversation_id);
           }
         }
       }
 
       // 스트리밍 완료
-      setMessages(prev => prev.map(m =>
-        m.id === streamingMsgId
-          ? { ...m, isStreaming: false, sources: collectedSources }
-          : m
-      ));
-      setIsSending(false);
+      finalize(true);
       scrollToBottom();
 
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') return;
+      if (err instanceof Error && err.name === 'AbortError') {
+        // 사용자가 중지했거나 새 질문으로 대체된 경우: 최신 요청일 때만 정리
+        finalize(started);
+        return;
+      }
 
       if (!started) {
-        sendBlocking(text, history);
+        finalize(false);
+        pushErrorMessage('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       } else {
-        setMessages(prev => prev.map(m =>
-          m.id === streamingMsgId ? { ...m, isStreaming: false } : m
-        ));
-        setIsSending(false);
+        finalize(true);
         scrollToBottom();
       }
     }
-  }, [messages, conversationId, scrollToBottom, sendBlocking]);
+  }, [messages, conversationId, scrollToBottom, pushErrorMessage]);
 
   return (
     <>
@@ -331,7 +368,8 @@ export default function ChatContainer() {
           <ChatBubble
             key={msg.id}
             message={msg}
-            style={{ animationDelay: `${0.15 + i * 0.1}s` }}
+            // 초기 로드 메시지만 순차 등장시키고, 이후 메시지는 즉시 표시(누적 딜레이 방지)
+            style={{ animationDelay: i < 5 ? `${0.15 + i * 0.1}s` : '0s' }}
           />
         ))}
 
@@ -339,7 +377,7 @@ export default function ChatContainer() {
         <div ref={bottomRef} />
       </div>
 
-      <ChatInput onSend={handleSend} disabled={isSending} />
+      <ChatInput onSend={handleSend} onStop={handleStop} isStreaming={isSending} />
     </>
   );
 }

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import type { ChatMessage } from '@/types';
 import NewsItem from './NewsItem';
 import styles from './ChatBubble.module.css';
@@ -119,7 +120,9 @@ export default function ChatBubble({ message, style }: Props) {
             <div className={`${styles.bubbleText} ${styles.markdown}`}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
+                // rehypeRaw는 normalizeMarkdown의 <strong> 변환에 필요하지만 그대로 두면
+                // 모델 출력의 임의 HTML(XSS)이 렌더링되므로, 바로 뒤에서 sanitize로 걸러낸다.
+                rehypePlugins={[rehypeRaw, rehypeSanitize]}
                 components={{
                   table: ({ children, ...props }) => (
                     <div className="table-wrapper">

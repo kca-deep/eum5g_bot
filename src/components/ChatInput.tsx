@@ -5,10 +5,11 @@ import styles from './ChatInput.module.css';
 
 interface Props {
   onSend: (text: string) => void;
-  disabled?: boolean;
+  onStop: () => void;
+  isStreaming?: boolean;
 }
 
-export default function ChatInput({ onSend, disabled }: Props) {
+export default function ChatInput({ onSend, onStop, isStreaming }: Props) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -21,13 +22,13 @@ export default function ChatInput({ onSend, disabled }: Props) {
 
   const handleSend = useCallback(() => {
     const text = value.trim();
-    if (!text || disabled) return;
+    if (!text) return;
     onSend(text);
     setValue('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [value, disabled, onSend]);
+  }, [value, onSend]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -50,18 +51,30 @@ export default function ChatInput({ onSend, disabled }: Props) {
             value={value}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            disabled={disabled}
           />
-          <button
-            className={`${styles.sendBtn} ${hasText ? styles.sendBtnActive : ''}`}
-            onClick={handleSend}
-            type="button"
-            disabled={disabled}
-          >
-            <svg viewBox="0 0 24 24">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-            </svg>
-          </button>
+          {isStreaming ? (
+            <button
+              className={`${styles.sendBtn} ${styles.sendBtnActive}`}
+              onClick={onStop}
+              type="button"
+              title="생성 중지"
+            >
+              <svg viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              className={`${styles.sendBtn} ${hasText ? styles.sendBtnActive : ''}`}
+              onClick={handleSend}
+              type="button"
+              title="전송"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       <p className={styles.notice}>
