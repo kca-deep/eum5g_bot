@@ -11,6 +11,7 @@ build/
 # env files
 .env
 .env.local
+.env.production.backup
 .env.development.local
 .env.test.local
 .env.production.local
@@ -32,3 +33,4 @@ Thumbs.db
 # claude code
 .agents/
 .claude/
+.env*
