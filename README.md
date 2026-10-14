@@ -184,6 +184,7 @@ eum5g_bot/
 │   ├── app/                      # Next.js 앱 라우터
 │   │   ├── api/chat/route.ts     # ⭐ 채팅 API (서버 핵심 로직, 처리 기록)
 │   │   ├── api/event/route.ts    # 브라우저 신호 기록 (체감 시간·답변 평가·대화 종료 카드)
+│   │   ├── api/cron/keepalive/   # 매일 1회 Dify 검색·Supabase 조회 (미사용 자동 비활성화 방지)
 │   │   ├── layout.tsx            # HTML 레이아웃 (타이틀, 메타 정보)
 │   │   ├── page.tsx              # 메인 페이지
 │   │   └── globals.css           # 전체 스타일 (색상, 폰트, 애니메이션)
@@ -274,6 +275,7 @@ AI가 답변할 때 따라야 하는 규칙을 정의한 문서입니다.
 |------|----|------|
 | `output` | `standalone` | 독립 실행 가능한 빌드 생성 |
 | `vercel.json` | `includeFiles: "src/prompts/**"` | 서버리스 함수에 프롬프트 파일 포함 |
+| `vercel.json` | `crons: /api/cron/keepalive` 매일 00:00 UTC | Dify Cloud는 검색·수정이 없는 지식베이스를 무료 7일·유료 30일 뒤 자동 비활성화(검색 인덱스 삭제)하므로 하루 1회 검색해 사용 기록을 남김. 0건이면 `[Keepalive] 실패` 오류 로그 |
 
 > **"서버리스"란?**
 > 별도의 서버 컴퓨터를 직접 운영하지 않고, 요청이 들어올 때만 클라우드에서 코드가 실행되는 방식입니다. 요청이 없으면 비용이 발생하지 않습니다.
@@ -329,4 +331,5 @@ npm run start
 | `SUPABASE_URL` | O | 처리 기록 DB 주소 (비우면 기록 없이 답변만 동작) |
 | `SUPABASE_SERVICE_ROLE_KEY` | O | 처리 기록 DB 서버 전용 키 (`NEXT_PUBLIC_` 접두어 금지) |
 | `OPENAI_REASONING_EFFORT` | - | 추론형 모델(o·gpt-5 이후) 추론 강도 (none·minimal·low·medium·high·xhigh, 비우면 medium, 운영 medium) |
+| `CRON_SECRET` | O | 매일 상태 유지 호출 인증값 (Vercel Cron이 자동 전송, 운영 Production에만 등록) |
 | `NEXT_PUBLIC_SUPPORT_PHONE` | - | 대화 종료 카드의 지원센터 대표번호 (비우면 지원포털 링크만 표시) |

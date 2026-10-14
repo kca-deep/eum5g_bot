@@ -3,5 +3,11 @@
     "src/app/api/**/*.ts": {
       "includeFiles": "src/prompts/**"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/keepalive",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }
