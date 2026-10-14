@@ -13,8 +13,19 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 // 멀티턴 검색 질의 재작성용 경량 모델(비용·지연 최소화)
 const REWRITE_MODEL = process.env.OPENAI_REWRITE_MODEL || 'gpt-4o-mini';
-// 추론형 모델(gpt-5 계열)의 추론 강도. 명시한 경우에만 전달한다(미설정 = 모델 기본값).
-const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT as OpenAI.ReasoningEffort | undefined;
+// 추론형 모델(o·gpt-5 이후 계열)의 추론 강도. 미설정이면 medium.
+// 값 오타 하나로 모든 답변이 400으로 실패하지 않도록 허용값만 쓰고, 추론형이 아닌 모델에는 보내지 않는다.
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+const IS_REASONING_MODEL = /^(o\d|gpt-([5-9]|\d{2,}))/i.test(MODEL);
+const REASONING_EFFORT = resolveReasoningEffort(process.env.OPENAI_REASONING_EFFORT);
+
+function resolveReasoningEffort(raw: string | undefined): OpenAI.ReasoningEffort | undefined {
+  if (!IS_REASONING_MODEL) return undefined;
+  const value = (raw || 'medium').trim().toLowerCase();
+  if ((REASONING_EFFORTS as readonly string[]).includes(value)) return value as OpenAI.ReasoningEffort;
+  console.warn(`[Chat] OPENAI_REASONING_EFFORT="${raw}"는 허용값(${REASONING_EFFORTS.join('|')})이 아니어서 medium으로 처리`);
+  return 'medium';
+}
 
 // 공개 API 남용(크레딧 소진) 방지 한도
 const MAX_QUERY_LENGTH = 2000;
@@ -314,7 +325,7 @@ export async function POST(req: NextRequest) {
             { role: 'user', content: query },
           ];
 
-          console.log(`[Chat] turn=${turn.id}, model=${MODEL}, records=${records.length}, history=${priorMessages.length}, promptLen=${systemPrompt.length}`);
+          console.log(`[Chat] turn=${turn.id}, model=${MODEL}, effort=${REASONING_EFFORT ?? '-'}, records=${records.length}, history=${priorMessages.length}, promptLen=${systemPrompt.length}`);
           const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
             model: MODEL,
             messages,
