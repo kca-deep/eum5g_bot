@@ -7,6 +7,12 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const telemetryEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
+/** Supabase 서버 키 헤더. 새 비밀 키(sb_secret_…)는 apikey 헤더로만 보내고,
+ * 구형 service_role 키(JWT, 2026년 말 폐지 예정)는 Authorization에도 함께 싣는다. */
+export function supabaseHeaders(key: string): Record<string, string> {
+  return key.startsWith('sb_') ? { apikey: key } : { apikey: key, Authorization: `Bearer ${key}` };
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function asUuid(value: unknown): string | null {
@@ -127,8 +133,7 @@ function persist(table: 'chat_turn' | 'chat_event', row: object): void {
   const task = fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
     headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      ...supabaseHeaders(SUPABASE_KEY),
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
     },

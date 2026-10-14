@@ -173,7 +173,18 @@ COMMENT ON VIEW public.ai_performance_log IS 'AI 성과측정 표준 로그 (붙
 CREATE OR REPLACE FUNCTION public.purge_chat_log(retention interval DEFAULT interval '1 year')
 RETURNS void
 LANGUAGE sql
+SET search_path = ''
 AS $$
   DELETE FROM public.chat_event WHERE created_at  < now() - retention;
   DELETE FROM public.chat_turn  WHERE received_at < now() - retention;
 $$;
+
+-- 권한: 기록은 서버 키(service_role = Secret key)로만 읽고 쓴다.
+-- RLS(정책 없음)로 이미 막혀 있지만, 공개 키(anon·authenticated)에는 테이블·뷰·함수 권한 자체를 주지 않는다.
+-- 프로젝트에서 'Data API 자동 노출'을 꺼 두었어도 서버 키가 동작하도록 service_role 권한은 명시한다.
+REVOKE ALL ON public.chat_turn, public.chat_event, public.chat_review, public.ai_performance_log FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.purge_chat_log(interval) FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.chat_turn, public.chat_event, public.chat_review TO service_role;
+GRANT SELECT ON public.ai_performance_log TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT EXECUTE ON FUNCTION public.purge_chat_log(interval) TO service_role;

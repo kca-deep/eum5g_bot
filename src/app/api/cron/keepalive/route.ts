@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { supabaseHeaders } from '@/lib/telemetry';
 
 /**
  * 매일 1회(Vercel Cron, vercel.json) 외부 서비스가 '사용 중'으로 남도록 가볍게 호출한다.
@@ -55,7 +56,7 @@ async function pingSupabase(): Promise<Ping> {
 
   try {
     const res = await fetch(`${url}/rest/v1/chat_turn?select=id&limit=1`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      headers: supabaseHeaders(key),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     return res.ok ? { ok: true, status: res.status } : { ok: false, status: res.status, error: (await res.text()).slice(0, 300) };

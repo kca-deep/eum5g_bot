@@ -329,7 +329,7 @@ npm run start
 | `OPENAI_API_KEY` | O | OpenAI API 키 |
 | `OPENAI_MODEL` | - | 사용할 GPT 모델명 (기본값: `gpt-4o`) |
 | `SUPABASE_URL` | O | 처리 기록 DB 주소 (비우면 기록 없이 답변만 동작) |
-| `SUPABASE_SERVICE_ROLE_KEY` | O | 처리 기록 DB 서버 전용 키 (`NEXT_PUBLIC_` 접두어 금지) |
+| `SUPABASE_SERVICE_ROLE_KEY` | O | 처리 기록 DB 서버 전용 키: Secret key(`sb_secret_…`) 권장, 구형 service_role(JWT)도 가능 (`NEXT_PUBLIC_` 접두어 금지) |
 | `OPENAI_REASONING_EFFORT` | - | 추론형 모델(o·gpt-5 이후) 추론 강도 (none·minimal·low·medium·high·xhigh, 비우면 medium, 운영 medium) |
 | `CRON_SECRET` | O | 매일 상태 유지 호출 인증값 (Vercel Cron이 자동 전송, 운영 Production에만 등록) |
 | `NEXT_PUBLIC_SUPPORT_PHONE` | - | 대화 종료 카드의 지원센터 대표번호 (비우면 지원포털 링크만 표시) |
