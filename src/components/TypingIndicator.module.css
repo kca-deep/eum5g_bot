@@ -2,19 +2,12 @@
   display: flex;
   align-items: flex-start;
   margin: 20px 0 8px 0;
-  opacity: 1;
-  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              margin 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  max-height: 200px;
-  overflow: hidden;
+  animation: enter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.hidden {
-  opacity: 0;
-  max-height: 0;
-  margin: 0;
-  pointer-events: none;
+@keyframes enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .profileImg {
@@ -43,28 +36,16 @@
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   padding-left: 2px;
 }
 
-/* ── Bubble ── */
+/* ── 진행 표시: 답변과 같은 자리에 상자 없이 둔다 ── */
 .bubble {
-  background: var(--bg-bubble);
-  border-radius: 2px 16px 16px 16px;
-  padding: 13px 18px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: border-color 0.3s;
-}
-
-.bubble.searching {
-  border-color: rgba(20, 86, 253, 0.12);
-}
-
-.bubble.generating {
-  border-color: rgba(37, 99, 235, 0.18);
+  min-height: 30px;
 }
 
 /* ── Wave Bars ── */
@@ -115,11 +96,18 @@
 
 /* ── Label ── */
 .label {
-  font-size: 12.5px;
-  font-weight: 450;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-secondary);
-  white-space: nowrap;
   animation: fadeIn 0.35s ease-out;
+}
+
+.elapsed {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
 }
 
 @keyframes fadeIn {
@@ -130,7 +118,6 @@
 /* ── Responsive ── */
 @media (max-width: 480px) {
   .bubble {
-    padding: 11px 14px;
     gap: 10px;
   }
 
@@ -143,13 +130,11 @@
   }
 
   .label {
-    font-size: 12px;
+    font-size: 12.5px;
   }
 
   .profileImg {
-    width: 40px;
-    height: 40px;
-    border-radius: 13px;
+    display: none;
   }
 
   .name {

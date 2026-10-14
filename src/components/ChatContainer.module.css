@@ -1,28 +1,59 @@
 .content {
-  padding: 0 16px;
-  max-width: 960px;
+  display: block;
+  padding: 24px 16px 0;
+  max-width: var(--content-width);
   margin: 0 auto;
   position: relative;
   z-index: 1;
 }
 
-.sectionTitle {
-  text-align: center;
-  margin-bottom: 32px;
-  opacity: 0;
-  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+/* 첫 화면 추천 질문: 인사말 아래, 답변 본문과 같은 들여쓰기 */
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 8px 60px;
 }
 
-.sectionTitle h2 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  letter-spacing: -0.3px;
+.starter {
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(20, 86, 253, 0.25);
+  background: var(--bg-white);
+  color: var(--primary-dark);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+  word-break: keep-all;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
 
-.dateLine {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin-top: 6px;
-  font-weight: 400;
+.starter:hover {
+  background: var(--primary-tint);
+  border-color: rgba(20, 86, 253, 0.45);
+}
+
+.starter:active {
+  transform: scale(0.98);
+}
+
+/* 중지 등 짧은 상태 안내 */
+.notice {
+  margin: 12px 0 8px 60px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+  .starters,
+  .notice {
+    margin-left: 0;
+  }
+
+  .starter {
+    font-size: 13.5px;
+  }
 }

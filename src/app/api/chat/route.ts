@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import OpenAI from 'openai';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { createRateLimiter, clientIp } from '@/lib/rateLimit';
+import { TurnLog, asUuid } from '@/lib/telemetry';
 
 const DIFY_DATASET_API_KEY = process.env.DIFY_DATASET_API_KEY || '';
 const DIFY_BASE_URL = process.env.DIFY_BASE_URL || 'https://api.dify.ai/v1';
@@ -11,13 +13,14 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 // 멀티턴 검색 질의 재작성용 경량 모델(비용·지연 최소화)
 const REWRITE_MODEL = process.env.OPENAI_REWRITE_MODEL || 'gpt-4o-mini';
+// 추론형 모델(gpt-5 계열)의 추론 강도. 명시한 경우에만 전달한다(미설정 = 모델 기본값).
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT as OpenAI.ReasoningEffort | undefined;
 
 // 공개 API 남용(크레딧 소진) 방지 한도
 const MAX_QUERY_LENGTH = 2000;
 const MAX_HISTORY_ITEMS = 6;
 const MAX_HISTORY_CONTENT_LENGTH = 4000;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 20;
+const isRateLimited = createRateLimiter(20, 60_000);
 
 // 사용자에게 보여줄 일반화된 오류 문구(내부 모델명·에러 원문은 서버 로그에만 남긴다)
 const GENERIC_ERROR_MESSAGE = '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
@@ -40,27 +43,6 @@ function loadSystemPrompt(): string {
 }
 
 const SYSTEM_PROMPT_TEMPLATE = loadSystemPrompt();
-
-/** IP별 슬라이딩 윈도우 요청 제한.
- * Fluid Compute 인스턴스 단위 메모리라 완전한 차단은 아니지만,
- * 스크립트성 남용으로 OpenAI 크레딧이 소진되는 것을 막는 1차 방어선이다. */
-const rateHits = new Map<string, number[]>();
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  if (rateHits.size > 5000) {
-    for (const [key, hits] of rateHits) {
-      if (hits.every((t) => now - t >= RATE_LIMIT_WINDOW_MS)) rateHits.delete(key);
-    }
-  }
-  const hits = (rateHits.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  if (hits.length >= RATE_LIMIT_MAX_REQUESTS) {
-    rateHits.set(ip, hits);
-    return true;
-  }
-  hits.push(now);
-  rateHits.set(ip, hits);
-  return false;
-}
 
 interface DifySegment {
   id: string;
@@ -121,9 +103,10 @@ async function rewriteSearchQuery(query: string, priorMessages: ChatHistoryMessa
   }
 }
 
-/** Step 1: Dify Knowledge Base에서 관련 청크 검색 */
-async function retrieveChunks(query: string): Promise<DifyRecord[]> {
-  if (!DIFY_DATASET_API_KEY || !DIFY_DATASET_ID) return [];
+/** Step 1: Dify Knowledge Base에서 관련 청크 검색.
+ * ok=false는 검색 자체가 실패한 경우로, '관련 문서 없음(ok=true, 0건)'과 구분해 기록한다. */
+async function retrieveChunks(query: string): Promise<{ records: DifyRecord[]; ok: boolean }> {
+  if (!DIFY_DATASET_API_KEY || !DIFY_DATASET_ID) return { records: [], ok: false };
 
   const res = await fetch(
     `${DIFY_BASE_URL}/datasets/${DIFY_DATASET_ID}/retrieve`,
@@ -154,11 +137,11 @@ async function retrieveChunks(query: string): Promise<DifyRecord[]> {
       const err = await res.json();
       console.error('[RAG Error] 상세:', JSON.stringify(err));
     } catch { /* ignore */ }
-    return [];
+    return { records: [], ok: false };
   }
 
   const data = (await res.json()) as DifyRetrieveResponse;
-  return data.records || [];
+  return { records: data.records || [], ok: true };
 }
 
 /** 문서 파일명을 사용자에게 노출해도 되는 자료 유형으로 매핑.
@@ -212,10 +195,18 @@ function sseEncode(event: Record<string, unknown>): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
 }
 
+/** 오류를 처리 기록용 코드로 분류(원문 메시지는 서버 로그에만 남긴다) */
+function errorCode(err: unknown): string {
+  if (err instanceof OpenAI.APIError) return `openai_${err.status ?? 'unknown'}`;
+  if (err instanceof Error && err.name === 'AbortError') return 'aborted';
+  return 'internal';
+}
+
 export async function POST(req: NextRequest) {
+  // 접수시각은 요청을 받은 즉시 잡는다(처리 후 기록하면 접수·완료 시각이 같아진다).
+  const receivedAt = new Date();
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    if (isRateLimited(ip)) {
+    if (isRateLimited(clientIp(req.headers))) {
       return Response.json(
         { error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' },
         { status: 429 },
@@ -223,17 +214,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { query, conversation_id, history } = body;
-
-    if (!query || typeof query !== 'string') {
-      return Response.json({ error: 'query is required' }, { status: 400 });
-    }
-    if (query.length > MAX_QUERY_LENGTH) {
-      return Response.json(
-        { error: `질문은 ${MAX_QUERY_LENGTH}자 이내로 입력해 주세요.` },
-        { status: 400 },
-      );
-    }
+    const { query, conversation_id, history, session_id, turn_index } = body;
 
     // 멀티턴: 클라이언트가 보낸 직전 대화 이력을 검증·정리(최근 6개 = 3턴, 항목당 길이 제한).
     const priorMessages: ChatHistoryMessage[] = Array.isArray(history)
@@ -251,28 +232,80 @@ export async function POST(req: NextRequest) {
           }))
       : [];
 
+    const turn = new TurnLog({
+      receivedAt,
+      sessionId: asUuid(session_id),
+      turnIndex: Number.isInteger(turn_index) && turn_index >= 0 ? turn_index : null,
+      historyCount: priorMessages.length,
+    });
+
+    if (!query || typeof query !== 'string') {
+      turn.finish('rejected', { errorCode: 'invalid_query' });
+      return Response.json({ error: 'query is required' }, { status: 400 });
+    }
+    if (query.length > MAX_QUERY_LENGTH) {
+      turn.finish('rejected', { errorCode: 'query_too_long' });
+      return Response.json(
+        { error: `질문은 ${MAX_QUERY_LENGTH}자 이내로 입력해 주세요.` },
+        { status: 400 },
+      );
+    }
+
+    // 사용자가 중지하거나 연결이 끊기면 생성 모델 호출도 끊어 비용을 막고, '중지'로 기록한다.
+    const llmAbort = new AbortController();
+    let cancelled = false;
+    let answer = '';
+    const stop = () => {
+      if (cancelled) return;
+      cancelled = true;
+      llmAbort.abort();
+      turn.finish('stopped', { query, answer });
+    };
+    req.signal.addEventListener('abort', stop);
+
     const stream = new ReadableStream({
       async start(controller) {
+        const send = (event: Record<string, unknown>) => {
+          if (!cancelled) controller.enqueue(sseEncode(event));
+        };
         try {
+          // 처리ID를 먼저 알려 클라이언트 실측·피드백을 같은 기록에 묶는다.
+          send({ event: 'meta', turn_id: turn.id });
+
           // Phase 1: 지식 검색 시작 알림
-          controller.enqueue(sseEncode({
-            event: 'status',
-            status: 'searching',
-          }));
+          send({ event: 'status', status: 'searching' });
 
           // 후속 질문이면 대화 맥락을 반영한 독립형 질의로 재작성 후 검색
-          const searchQuery = await rewriteSearchQuery(query, priorMessages);
-          if (process.env.RAG_DEBUG === '1' && searchQuery !== query) {
-            console.log(`[Rewrite] "${query}" → "${searchQuery}"`);
+          let searchQuery = query;
+          if (priorMessages.length > 0) {
+            turn.mark('rewrite_started_at');
+            searchQuery = await rewriteSearchQuery(query, priorMessages);
+            turn.mark('rewrite_ended_at');
+            turn.set({ rewrite_model: REWRITE_MODEL, rewritten_query: searchQuery });
+            if (process.env.RAG_DEBUG === '1' && searchQuery !== query) {
+              console.log(`[Rewrite] "${query}" → "${searchQuery}"`);
+            }
           }
-          const records = await retrieveChunks(searchQuery);
+
+          turn.mark('retrieval_started_at');
+          const { records, ok: retrievalOk } = await retrieveChunks(searchQuery);
+          turn.mark('retrieval_ended_at');
+          const categories = [...new Set(records.map((r) => docCategory(r.segment.document?.name || '')))];
+          turn.set({
+            retrieval_ok: retrievalOk,
+            records_count: records.length,
+            top_score: records.length > 0 ? Math.max(...records.map((r) => r.score)) : null,
+            doc_categories: categories,
+          });
+          if (cancelled) return;
+
+          // 근거 표시는 모델 문장이 아니라 검색 결과로 정한다. 공개 라벨만 보내고 파일명·원문은 보내지 않는다.
+          send({ event: 'context', grounded: records.length > 0, categories });
+
           const systemPrompt = buildSystemPrompt(records);
 
           // Phase 2: 답변 생성 시작 알림
-          controller.enqueue(sseEncode({
-            event: 'status',
-            status: 'generating',
-          }));
+          send({ event: 'status', status: 'generating' });
 
           // system(현재 질문용 RAG 컨텍스트 포함) → 직전 대화 이력 → 현재 질문
           const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -281,49 +314,75 @@ export async function POST(req: NextRequest) {
             { role: 'user', content: query },
           ];
 
-          console.log(`[Chat] model=${MODEL}, envModel=${process.env.OPENAI_MODEL}, records=${records.length}, history=${priorMessages.length}, promptLen=${systemPrompt.length}`);
+          console.log(`[Chat] turn=${turn.id}, model=${MODEL}, records=${records.length}, history=${priorMessages.length}, promptLen=${systemPrompt.length}`);
           const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
             model: MODEL,
             messages,
             stream: true,
+            // 마지막 청크로 토큰 사용량을 받아 처리 기록에 남긴다.
+            stream_options: { include_usage: true },
           };
           // gpt-5 계열 등 일부 모델은 기본값(1) 외 temperature를 거부하므로,
           // OPENAI_TEMPERATURE가 명시된 경우에만 전달한다(예: gpt-4o에서 0.3).
           if (process.env.OPENAI_TEMPERATURE) {
             createParams.temperature = Number(process.env.OPENAI_TEMPERATURE);
           }
-          const completion = await openai.chat.completions.create(createParams);
+          if (REASONING_EFFORT) {
+            createParams.reasoning_effort = REASONING_EFFORT;
+          }
+          turn.set({ model: MODEL, reasoning_effort: REASONING_EFFORT || null });
+
+          turn.mark('llm_started_at');
+          const completion = await openai.chat.completions.create(createParams, { signal: llmAbort.signal });
 
           for await (const chunk of completion) {
+            if (chunk.usage) {
+              turn.set({
+                prompt_tokens: chunk.usage.prompt_tokens,
+                completion_tokens: chunk.usage.completion_tokens,
+                reasoning_tokens: chunk.usage.completion_tokens_details?.reasoning_tokens ?? null,
+              });
+            }
             const delta = chunk.choices[0]?.delta?.content;
             if (delta) {
-              controller.enqueue(sseEncode({
+              if (!turn.has('first_token_at')) turn.mark('first_token_at');
+              answer += delta;
+              send({
                 event: 'message',
                 answer: delta,
                 conversation_id: conversation_id || null,
                 message_id: chunk.id,
-              }));
+              });
             }
           }
+          turn.mark('llm_ended_at');
 
           // 검색 원문·파일명은 클라이언트로 내려보내지 않는다(개인정보·내부정보 유출 방지).
-          controller.enqueue(sseEncode({
+          send({
             event: 'message_end',
             conversation_id: conversation_id || null,
             metadata: {},
-          }));
+          });
 
-          controller.close();
+          turn.mark('completed_at');
+          if (!cancelled) controller.close();
+          turn.finish('completed', { query, answer });
         } catch (err) {
+          // 중지로 생성 호출이 끊긴 경우는 stop()에서 이미 기록했다.
+          if (cancelled) return;
           const errMsg = err instanceof Error ? err.message : String(err);
-          console.error('[Chat Error]', errMsg);
-          controller.enqueue(sseEncode({
+          console.error('[Chat Error]', `turn=${turn.id}`, errMsg);
+          turn.finish('error', { query, answer, errorCode: errorCode(err) });
+          send({
             event: 'error',
             message: GENERIC_ERROR_MESSAGE,
-          }));
+          });
           controller.close();
+        } finally {
+          req.signal.removeEventListener('abort', stop);
         }
       },
+      cancel: stop,
     });
 
     return new Response(stream, {

@@ -13,10 +13,9 @@ KCA(한국방송통신전파진흥원) 이음5G사업팀의 공식 AI 어시스�
 4. [핵심 기술 파이프라인 (RAG)](#핵심-기술-파이프라인-rag)
 5. [프로젝트 폴더 구조](#프로젝트-폴더-구조)
 6. [주요 파일 설명](#주요-파일-설명)
-7. [뉴스 기능](#뉴스-기능)
-8. [배포 환경](#배포-환경)
-9. [로컬 개발 환경 설정](#로컬-개발-환경-설정)
-10. [환경 변수 설명](#환경-변수-설명)
+7. [배포 환경](#배포-환경)
+8. [로컬 개발 환경 설정](#로컬-개발-환경-설정)
+9. [환경 변수 설명](#환경-변수-설명)
 
 ---
 
@@ -183,20 +182,24 @@ eum5g_bot/
 │
 ├── src/                          # 소스 코드 (핵심)
 │   ├── app/                      # Next.js 앱 라우터
-│   │   ├── api/chat/route.ts     # ⭐ 채팅 API (서버 핵심 로직)
+│   │   ├── api/chat/route.ts     # ⭐ 채팅 API (서버 핵심 로직, 처리 기록)
+│   │   ├── api/event/route.ts    # 브라우저 신호 기록 (체감 시간·답변 평가·대화 종료 카드)
 │   │   ├── layout.tsx            # HTML 레이아웃 (타이틀, 메타 정보)
 │   │   ├── page.tsx              # 메인 페이지
 │   │   └── globals.css           # 전체 스타일 (색상, 폰트, 애니메이션)
 │   │
 │   ├── components/               # 화면 구성 요소 (UI)
-│   │   ├── Header.tsx            # 상단 헤더 (로고, Beta 배지)
-│   │   ├── ChatContainer.tsx     # ⭐ 채팅 전체 흐름 관리
+│   │   ├── Header.tsx            # 상단 헤더 (로고, 제목, 시범운영 배지, 새 대화)
+│   │   ├── ChatContainer.tsx     # ⭐ 채팅 전체 흐름 관리 (시작 질문, 종료 카드 트리거)
 │   │   ├── ChatInput.tsx         # 하단 입력창
-│   │   ├── ChatBubble.tsx        # 메시지 말풍선
-│   │   ├── NewsItem.tsx          # 뉴스 카드
-│   │   ├── TypingIndicator.tsx   # "검색 중/생성 중" 애니메이션
-│   │   ├── LoadingOverlay.tsx    # 초기 로딩 화면
+│   │   ├── ChatBubble.tsx        # 메시지 말풍선 (근거 표시, 표, 복사, 답변 평가)
+│   │   ├── EndCard.tsx           # 대화 종료 카드 (해결 여부, 지원센터 안내)
+│   │   ├── TypingIndicator.tsx   # 검색·작성 단계와 경과 시간 표시
 │   │   └── *.module.css          # 각 컴포넌트별 스타일
+│   │
+│   ├── lib/
+│   │   ├── telemetry.ts          # 처리 기록(Supabase) 저장
+│   │   └── rateLimit.ts          # IP별 요청 제한
 │   │
 │   ├── prompts/
 │   │   └── system.md             # ⭐ AI 답변 규칙 템플릿
@@ -259,21 +262,6 @@ AI가 답변할 때 따라야 하는 규칙을 정의한 문서입니다.
 
 ---
 
-## 뉴스 기능
-
-환경 변수 `NEXT_PUBLIC_NEWS_API_URL`이 설정된 경우에만 동작하는 **선택적 기능**입니다.
-
-```
-외부 뉴스 API ──→ 뉴스 데이터 (JSON) ──→ 뉴스 카드 목록으로 표시
-```
-
-- 앱 첫 로딩 시 외부 API에서 5G 관련 뉴스 데이터를 가져옵니다.
-- 각 뉴스는 카드 형태로 표시됩니다 (카테고리, 제목, 출처, 요약, 키워드).
-- 카드를 클릭하면 원문 기사로 이동합니다.
-- 현재 해당 환경 변수가 비어 있으므로 **뉴스 기능은 비활성화** 상태입니다.
-
----
-
 ## 배포 환경
 
 ### Vercel 서버리스 배포
@@ -333,10 +321,12 @@ npm run start
 
 | 변수명 | 필수 | 설명 |
 |--------|------|------|
-| `DIFY_API_KEY` | O | Dify 앱의 API 키 (Dify 콘솔 > 앱 > API 접근에서 발급) |
 | `DIFY_BASE_URL` | O | Dify API 기본 주소 (기본값: `https://api.dify.ai/v1`) |
 | `DIFY_DATASET_API_KEY` | O | Dify 지식베이스 전용 API 키 (Dify 콘솔 > 지식베이스 > API Key) |
 | `DIFY_DATASET_ID` | O | Dify 지식베이스의 고유 ID |
 | `OPENAI_API_KEY` | O | OpenAI API 키 |
 | `OPENAI_MODEL` | - | 사용할 GPT 모델명 (기본값: `gpt-4o`) |
-| `NEXT_PUBLIC_NEWS_API_URL` | - | 뉴스 API 주소 (비워두면 뉴스 기능 비활성화) |
+| `SUPABASE_URL` | O | 처리 기록 DB 주소 (비우면 기록 없이 답변만 동작) |
+| `SUPABASE_SERVICE_ROLE_KEY` | O | 처리 기록 DB 서버 전용 키 (`NEXT_PUBLIC_` 접두어 금지) |
+| `OPENAI_REASONING_EFFORT` | - | gpt-5 계열 추론 강도 (minimal·low·medium·high, 비우면 모델 기본값) |
+| `NEXT_PUBLIC_SUPPORT_PHONE` | - | 대화 종료 카드의 지원센터 대표번호 (비우면 지원포털 링크만 표시) |

@@ -10,16 +10,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 20px;
+}
+
+/* 파란 헤더 위에서는 포커스 링을 흰색으로 */
+.header :focus-visible {
+  outline-color: #fff;
 }
 
 .headerInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  max-width: 960px;
+  max-width: var(--content-width);
   padding: 0 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .logo {
@@ -27,38 +45,83 @@
   height: auto;
 }
 
-.icons {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.2px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
 }
 
+/* 상태 표시일 뿐 누를 수 있는 요소가 아니므로 버튼처럼 보이지 않게 한다 */
 .badge {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 16px;
-  display: flex;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.newBtn {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: background 0.2s;
-  cursor: pointer;
-}
-
-.badge:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.badge svg {
-  width: 14px;
-  height: 14px;
-  fill: #fff;
-}
-
-.badge span {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 14px 0 11px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
   color: #fff;
-  font-size: 11px;
+  font-size: 13.5px;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.newBtn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.newBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.newBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    padding: 0;
+    border: 0;
+  }
+
+  .logo {
+    width: 104px;
+  }
+
+  .newBtn {
+    height: 34px;
+    padding: 0 12px 0 9px;
+    font-size: 13px;
+  }
 }

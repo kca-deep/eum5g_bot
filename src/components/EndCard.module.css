@@ -1,0 +1,119 @@
+/* 답변과 구분되는 안내 카드: 흰 바탕 위에 옅은 파랑 면, 내용 폭만큼만 차지한다 */
+.card {
+  width: fit-content;
+  max-width: calc(100% - 60px);
+  margin: 24px 0 12px 60px;
+  padding: 14px 14px 14px 20px;
+  border-radius: 16px;
+  background: #f5f8ff;
+  border: 1px solid rgba(20, 86, 253, 0.16);
+  animation: enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 문구와 버튼을 한 줄에 둔다. 폭이 모자랄 때만 버튼이 다음 줄로 내려간다 */
+.row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.question {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(20, 86, 253, 0.3);
+  background: var(--bg-white);
+  color: var(--primary-dark);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.choice:hover {
+  background: var(--primary-tint);
+  border-color: rgba(20, 86, 253, 0.5);
+}
+
+.result {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-body);
+  word-break: keep-all;
+}
+
+.result strong {
+  color: var(--text-dark);
+}
+
+.supportLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.supportLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.supportLink:hover {
+  background: var(--primary-dark);
+}
+
+.supportLink svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.phone {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .card {
+    max-width: 100%;
+    margin-left: 0;
+    padding: 14px 16px;
+  }
+}
